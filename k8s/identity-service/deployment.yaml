@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: identity-service
+  template:
+    metadata:
+      labels:
+        app: identity-service
+    spec:
+      containers:
+      - name: identity-service
+        image: saugat0082/identity-service:1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          value: Host=postgres-service;Port=5432;Database=identity_db;Username=user;Password=password
+        - name: Jwt__Key
+          value: super_secret_key_that_should_be_long_and_secure_for_cv_analyzer_app
+        - name: Jwt__Issuer
+          value: cv-analyzer-identity
+        - name: Jwt__Audience
+          value: cv-analyzer-app

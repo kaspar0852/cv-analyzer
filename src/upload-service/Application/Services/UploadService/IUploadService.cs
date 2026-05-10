@@ -7,7 +7,7 @@ namespace UploadService.Application.Services
 {
     public interface IUploadService
     {
-        Task<UploadResponse> UploadFileAsync(IFormFile file);
+        Task<UploadResponse> UploadFileAsync(IFormFile file, string? userId = null);
         Task<UploadResponse?> GetUploadStatusAsync(Guid id);
     }
 }

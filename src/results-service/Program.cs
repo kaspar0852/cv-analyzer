@@ -1,5 +1,8 @@
+using System.Text;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using ResultsService.Application.Consumers;
 using ResultsService.Infrastructure.Data;
 using ResultsService.Hubs;
@@ -16,7 +19,22 @@ builder.Services.AddHttpClient();
 // 3. SignalR
 builder.Services.AddSignalR();
 
-// 4. MassTransit & RabbitMQ Configuration
+// 4. Authentication
+var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "super_secret_key_that_should_be_long_and_secure_for_cv_analyzer_app"));
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = key,
+            ValidateIssuer = false,
+            ValidateAudience = false
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// 5. MassTransit & RabbitMQ Configuration
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<CVAnalysisCompletedConsumer>();
@@ -45,7 +63,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // SignalR needs specific origins for credentials
+        policy.SetIsOriginAllowed(_ => true) // More flexible for dev
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -56,7 +74,7 @@ var app = builder.Build();
 
 app.UseCors();
 
-// 5. Auto-Migration on startup
+// 6. Auto-Migration on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ResultsDbContext>();
@@ -68,6 +86,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<AnalysisHub>("/api/results/hub");

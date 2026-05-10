@@ -26,6 +26,7 @@ jobs:
           - parser-service
           - results-service
           - ai-analyzer
+          - identity-service
 
     steps:
       - name: Checkout Code

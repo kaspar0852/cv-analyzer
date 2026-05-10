@@ -6,9 +6,22 @@ import { UploadCard } from './components/upload-card';
 import { ScanningView } from '@/components/analyzer/ScanningView';
 import { ResultView } from '@/components/analyzer/ResultView';
 import { useCVAnalyzer } from '@/hooks/use-cv-analyzer';
+import { useAuth } from '@/hooks/use-auth';
+import { HistorySection } from './components/history-section';
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function AnalyzerPage() {
-  const { hasUploaded, isLoading, result, statusText, progress } = useCVAnalyzer();
+function AnalyzerContent() {
+  const { hasUploaded, isLoading, result, statusText, progress, loadAnalysis } = useCVAnalyzer();
+  const { isAuthenticated } = useAuth();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const uploadId = searchParams.get('id');
+    if (uploadId && !hasUploaded && !isLoading) {
+      loadAnalysis(uploadId);
+    }
+  }, [searchParams, hasUploaded, isLoading, loadAnalysis]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background">
@@ -73,8 +86,27 @@ export default function AnalyzerPage() {
             )}
 
           </AnimatePresence>
+
+          {/* User History Section */}
+          {isAuthenticated && !isLoading && !hasUploaded && (
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+            >
+              <HistorySection />
+            </motion.div>
+          )}
         </div>
       </section>
     </div>
+  );
+}
+
+export default function AnalyzerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <AnalyzerContent />
+    </Suspense>
   );
 }

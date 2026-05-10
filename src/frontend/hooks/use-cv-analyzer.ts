@@ -16,6 +16,7 @@ interface CVAnalyzerStore {
   
   setError: (error: string | null) => void;
   uploadFile: (file: File) => Promise<void>;
+  loadAnalysis: (uploadId: string) => Promise<void>;
   resetState: () => void;
 }
 
@@ -78,6 +79,27 @@ export const useCVAnalyzer = create<CVAnalyzerStore>((set) => ({
     } catch (error: any) {
       set({
         error: error.message || 'Failed to analyze CV',
+        isLoading: false,
+        statusText: '',
+        progress: 0,
+      });
+    }
+  },
+
+  loadAnalysis: async (uploadId: string) => {
+    set({ isLoading: true, error: null, progress: 50, statusText: 'Fetching your analysis...' });
+    try {
+      const fullReport = await cvApiClient.getFullReport(uploadId);
+      set({
+        result: fullReport,
+        progress: 100,
+        isLoading: false,
+        statusText: 'Analysis Loaded!',
+        hasUploaded: true,
+      });
+    } catch (error: any) {
+      set({
+        error: error.message || 'Failed to load analysis',
         isLoading: false,
         statusText: '',
         progress: 0,

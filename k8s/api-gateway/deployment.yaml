@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: saugat0082/api-gateway:1.2
+        image: saugat0082/api-gateway:1.3
         ports:
         - containerPort: 8080
         env:

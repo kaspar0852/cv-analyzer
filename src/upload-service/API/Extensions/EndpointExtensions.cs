@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -11,20 +12,28 @@ namespace UploadService.API.Extensions
         {
             var group = app.MapGroup("/api/upload");
 
-            group.MapPost("/", async (IFormFile file, IUploadService uploadService) =>
+            group.MapPost("/", async (IFormFile file, IUploadService uploadService, ClaimsPrincipal user) =>
             {
                 if (file.Length == 0)
                     return Results.BadRequest("No file uploaded.");
 
-                var response = await uploadService.UploadFileAsync(file);
+                // Extract UserId from JWT claims (NameIdentifier)
+                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                var response = await uploadService.UploadFileAsync(file, userId);
                 return Results.Ok(response);
             })
             .DisableAntiforgery();
 
-            group.MapGet("/{id:guid}", async (Guid id, IUploadService uploadService) =>
+            group.MapGet("/{id:guid}", async (Guid id, IUploadService uploadService, ClaimsPrincipal user) =>
             {
                 var response = await uploadService.GetUploadStatusAsync(id);
-                return response is not null ? Results.Ok(response) : Results.NotFound();
+                
+                if (response == null) return Results.NotFound();
+
+                // Eventually we can check if response.UserId == current userId for security
+                
+                return Results.Ok(response);
             });
         }
     }
