@@ -4,6 +4,7 @@ namespace Contracts.Events
 {
     public record FileUploadedEvent(
         Guid UploadId,
+        string? UserId,
         string FileName,
         string StoragePath,
         string ContentType,

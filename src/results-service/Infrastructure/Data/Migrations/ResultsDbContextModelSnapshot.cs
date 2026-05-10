@@ -56,6 +56,9 @@ namespace ResultsService.Infrastructure.Data.Migrations
                     b.Property<Guid>("UploadId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UploadId")

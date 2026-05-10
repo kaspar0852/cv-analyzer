@@ -28,9 +28,9 @@ namespace UploadService.Application.Services.UploadService
             _publishEndpoint = publishEndpoint;
         }
 
-        public async Task<UploadResponse> UploadFileAsync(IFormFile file)
+        public async Task<UploadResponse> UploadFileAsync(IFormFile file, string? userId = null)
         {
-            _logger.LogInformation("[UploadProcess] Started processing upload request for file: {FileName}", file.FileName);
+            _logger.LogInformation("[UploadProcess] Started processing upload request for file: {FileName} from User: {UserId}", file.FileName, userId);
             
             if (file.Length == 0)
             {
@@ -63,6 +63,7 @@ namespace UploadService.Application.Services.UploadService
                 _logger.LogInformation("[UploadProcess] Step 2: Saving metadata to database for {FileName}...", file.FileName);
                 var upload = new Upload
                 {
+                    UserId = userId,
                     Filename = file.FileName,
                     StoragePath = storagePath,
                     ContentType = file.ContentType,
@@ -76,12 +77,14 @@ namespace UploadService.Application.Services.UploadService
                 _logger.LogInformation("[UploadProcess] Step 3: Publishing FileUploadedEvent for ID: {Id}...", upload.Id);
                 await _publishEndpoint.Publish(new FileUploadedEvent(
                     upload.Id,
+                    upload.UserId,
                     upload.Filename,
                     upload.StoragePath,
                     upload.ContentType,
                     upload.SizeBytes,
                     upload.CreatedAt
                 ));
+                _logger.LogInformation("[UploadProcess] Step 3: Successfully published event for ID: {Id}", upload.Id);
                 _logger.LogInformation("[UploadProcess] Step 3: Successfully published event for ID: {Id}", upload.Id);
 
                 _logger.LogInformation("[UploadProcess] Completed successfully for file: {FileName}, ID: {Id}", file.FileName, upload.Id);

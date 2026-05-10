@@ -1,5 +1,8 @@
+using System.Text;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using UploadService.API.Extensions;
 using UploadService.API.Middleware;
 using UploadService.Application.Services;
@@ -23,6 +26,21 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Configure Authentication
+var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "super_secret_key_that_should_be_long_and_secure_for_cv_analyzer_app"));
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = key,
+            ValidateIssuer = false,
+            ValidateAudience = false
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>
@@ -55,6 +73,9 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

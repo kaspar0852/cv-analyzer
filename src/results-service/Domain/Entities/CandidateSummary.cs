@@ -5,6 +5,7 @@ namespace ResultsService.Domain.Entities
     public class CandidateSummary
     {
         public Guid Id { get; set; } = Guid.NewGuid();
+        public string? UserId { get; set; }
         public Guid UploadId { get; set; }
         
         // Basic Info for the Dashboard

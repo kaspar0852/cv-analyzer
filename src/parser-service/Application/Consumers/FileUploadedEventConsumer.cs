@@ -65,6 +65,7 @@ namespace ParserService.Application.Consumers
                 _logger.LogInformation("[ParserProcess] Step 5: Publishing RawTextExtractedEvent for {UploadId}...", @event.UploadId);
                 await context.Publish(new RawTextExtractedEvent(
                     @event.UploadId,
+                    @event.UserId,
                     text
                 ));
                 _logger.LogInformation("[ParserProcess] Step 5: Successfully published RawTextExtractedEvent for {UploadId}", @event.UploadId);

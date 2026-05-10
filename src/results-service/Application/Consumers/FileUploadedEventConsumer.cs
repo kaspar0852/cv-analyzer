@@ -27,6 +27,7 @@ namespace ResultsService.Application.Consumers
             var summary = new CandidateSummary
             {
                 UploadId = @event.UploadId,
+                UserId = @event.UserId,
                 CandidateName = "Processing...",
                 Industry = "Analyzing...",
                 OverallScore = 0,

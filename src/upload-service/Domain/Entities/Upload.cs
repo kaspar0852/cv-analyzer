@@ -5,6 +5,7 @@ namespace UploadService.Domain.Entities
     public class Upload
     {
         public Guid Id { get; set; } = Guid.NewGuid();
+        public string? UserId { get; set; } // The ID of the user who uploaded this
         public string Filename { get; set; } = string.Empty;
         public string StoragePath { get; set; } = string.Empty;
         public string ContentType { get; set; } = string.Empty;

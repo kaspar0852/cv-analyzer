@@ -16,7 +16,7 @@ class EventBus:
             heartbeat=600
         )
 
-    def publish_completion(self, upload_id: str, score: int, industry: str, name: str):
+    def publish_completion(self, upload_id: str, userId: str, score: int, industry: str, name: str):
         """Publishes a lightweight summary event for other services to consume."""
         try:
             connection = pika.BlockingConnection(self.connection_params)
@@ -28,6 +28,7 @@ class EventBus:
             message = {
                 "message": {
                     "uploadId": upload_id,
+                    "userId": userId,
                     "overallScore": score,
                     "industry": industry,
                     "candidateName": name,
@@ -68,10 +69,11 @@ class EventBus:
                         data = json.loads(body)
                         message = data.get("message", data)
                         upload_id = message.get("uploadId")
+                        userId = message.get("userId")
                         raw_text = message.get("rawText")
                         
                         if upload_id and raw_text:
-                            logger.info(f"Processing CV for UploadId: {upload_id}")
+                            logger.info(f"Processing CV for UploadId: {upload_id} (User: {userId})")
                             
                             # Run multi-stage async pipeline (returns a dict now)
                             pipeline_result = asyncio.run(ai_service.analyze_cv_pipeline(raw_text, upload_id))
@@ -86,7 +88,7 @@ class EventBus:
                                 name = pipeline_result.get("structured_data", {}).get("personalInfo", {}).get("name", "Unknown")
                                 
                                 # Publish the lightweight event
-                                self.publish_completion(upload_id, score, industry, name)
+                                self.publish_completion(upload_id, userId, score, industry, name)
                             else:
                                 logger.error(f"Pipeline failed for {upload_id}: {pipeline_result['error']}")
                         

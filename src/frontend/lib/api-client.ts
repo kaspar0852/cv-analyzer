@@ -10,30 +10,47 @@ class CVAnalyzerApiClient {
     this.client = axios.create({
       baseURL: this.baseURL,
     });
+
+    // Add interceptor to attach JWT token to every request if it exists
+    this.client.interceptors.request.use((config) => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
   }
 
-  // Step 1: Upload the file to the Upload Service
+  // --- AUTH ENDPOINTS ---
+  
+  async login(credentials: any): Promise<any> {
+    const response = await this.client.post('/api/auth/login', credentials);
+    return response.data;
+  }
+
+  async register(data: any): Promise<any> {
+    const response = await this.client.post('/api/auth/register', data);
+    return response.data;
+  }
+
+  // --- UPLOAD & ANALYSIS ---
+
   async uploadCV(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Hits our Upload Service
     const response = await this.client.post('/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     });
     
-    return response.data.uploadId || response.data.id; // Returns the UploadId
+    return response.data.uploadId || response.data.id;
   }
 
-  // Step 2: Poll the Results Service for status
   async checkStatus(uploadId: string): Promise<{ status: string, score?: number }> {
     try {
-      // Hits our Results Service Dashboard via API Gateway
       const response = await this.client.get(`/api/results/${uploadId}`);
-      return response.data; // { status: "Completed", overallScore: 85 }
+      return response.data;
     } catch (error: any) {
-      // If the record isn't created in the Results Service yet, it returns 404.
-      // We treat this as "Still Processing".
       if (error.response && error.response.status === 404) {
         return { status: "Processing" };
       }
@@ -41,10 +58,14 @@ class CVAnalyzerApiClient {
     }
   }
 
-  // Step 3: Fetch the deep 7-stage report from the source of truth
   async getFullReport(uploadId: string): Promise<any> {
-    // Hits the Results Service's proxy via API Gateway
     const response = await this.client.get(`/api/results/${uploadId}/full-report`);
+    return response.data;
+  }
+
+  // Fetch history for logged in users
+  async getRecentAnalysis(): Promise<any[]> {
+    const response = await this.client.get('/api/results');
     return response.data;
   }
 }
