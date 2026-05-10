@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: saugat0082/frontend:1.7
+        image: saugat0082/frontend:1.8
         ports:
         - containerPort: 3000
         env:
