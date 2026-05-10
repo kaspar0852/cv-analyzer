@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: ai-analyzer-service
+
+spec:
+  selector:
+    app: ai-analyzer-service
+
+  ports:
+  - port: 8000
+    targetPort: 8000
+
+  type: ClusterIP

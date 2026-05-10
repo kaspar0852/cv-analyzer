@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cv_reviewer
+    ports:
+      - "5432:5432"
+
+  api-gateway:
+    build:
+      context: ./src/api-gateway
+    ports:
+      - "5000:8080"
+    depends_on:
+      - db
+
+  upload-service:
+    build:
+      context: ./src/upload-service
+    ports:
+      - "5001:8080"
+    depends_on:
+      - db
+
+  parser-service:
+    build:
+      context: ./src/parser-service
+    ports:
+      - "5002:8080"
+    depends_on:
+      - db
+
+  ai-analyzer:
+    build:
+      context: ./src/ai-analyzer
+    ports:
+      - "8000:8000"
+
+  results-service:
+    build:
+      context: ./src/results-service
+    ports:
+      - "5003:8080"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./src/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    depends_on:
+      - api-gateway

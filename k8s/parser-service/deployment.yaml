@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: parser-service
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: parser-service
+
+  template:
+    metadata:
+      labels:
+        app: parser-service
+
+    spec:
+      containers:
+      - name: parser-service
+
+        image: saugat0082/parser-service:1.8
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8080
+
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          value: Host=postgres-service;Port=5432;Database=cv_reviewer;Username=user;Password=password

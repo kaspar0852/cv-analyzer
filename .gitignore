@@ -1,0 +1,57 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --------------------------
+# Frontend (Next.js / Node)
+# --------------------------
+node_modules/
+.next/
+out/
+build/
+dist/
+.env*.local
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --------------------------
+# AI Analyzer (Python)
+# --------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.pytest_cache/
+*.sqlite3
+
+# --------------------------
+# .NET Services (API Gateway, Upload, Parser, Results)
+# --------------------------
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+appsettings.Development.json
+*.db
+*.db-shm
+*.db-wal
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp

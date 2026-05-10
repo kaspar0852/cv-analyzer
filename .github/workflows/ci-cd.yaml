@@ -1,0 +1,77 @@
+name: Microservices CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    # Only run the workflow if code in these directories changes
+    paths:
+      - 'src/**'
+      - '.github/workflows/**'
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Define all your microservices here
+        service: 
+          - frontend
+          - api-gateway
+          - upload-service
+          - parser-service
+          - results-service
+          - ai-analyzer
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Needed to check which files changed
+
+      - name: Check if service changed
+        id: check_changes
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q "^src/${{ matrix.service }}/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to Docker Hub
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/${{ matrix.service }}
+          push: true
+          # Tags with both 'latest' and the specific Git SHA for version tracking
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${{ github.sha }}
+
+      # (Optional) Update Kubernetes Manifests automatically
+      - name: Update Kubernetes Deployment
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          # Use sed to replace the image tag in the deployment file
+          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${{ github.sha }}|g" k8s/${{ matrix.service }}/deployment.yaml
+          
+      - name: Commit and Push K8s Changes
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add k8s/${{ matrix.service }}/deployment.yaml
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update ${{ matrix.service }} image to ${{ github.sha }}" && git push)
