@@ -20,7 +20,7 @@ spec:
       containers:
       - name: results-service
 
-        image: saugat0082/results-service:1.6
+        image: saugat0082/results-service:2.2
 
         imagePullPolicy: Always
 

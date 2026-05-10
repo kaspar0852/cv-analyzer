@@ -20,7 +20,7 @@ spec:
       containers:
       - name: ai-analyzer-service
 
-        image: saugat0082/ai-analyzer:232497cef803fadf0880036c63e4e9e21f316f4d
+        image: saugat0082/ai-analyzer:2.6
 
         imagePullPolicy: Always
 
