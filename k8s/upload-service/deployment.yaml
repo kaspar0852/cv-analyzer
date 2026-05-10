@@ -20,7 +20,7 @@ spec:
       containers:
       - name: upload-service
 
-        image: saugat0082/upload-service:1.9
+        image: saugat0082/upload-service:038125464adc0e7413fa0b417abea93865c48eda
 
         imagePullPolicy: Always
 
