@@ -25,16 +25,14 @@ class EventBus:
             exchange_name = settings.COMPLETION_EVENT
             channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable=True)
             
+            # Since we enabled RawJsonDeserializer in .NET, we send a flat object
             message = {
-                "message": {
-                    "uploadId": upload_id,
-                    "userId": userId,
-                    "overallScore": score,
-                    "industry": industry,
-                    "candidateName": name,
-                    "status": "Completed"
-                },
-                "messageType": [f"urn:message:{settings.COMPLETION_EVENT}"]
+                "uploadId": upload_id,
+                "userId": userId,
+                "overallScore": score,
+                "industry": industry,
+                "candidateName": name,
+                "status": "Completed"
             }
             
             channel.basic_publish(
@@ -47,6 +45,34 @@ class EventBus:
             connection.close()
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")
+
+    def publish_interview_prep(self, upload_id: str, userId: str, prep_json: dict):
+        """Publishes the Stage 8 results separately."""
+        try:
+            connection = pika.BlockingConnection(self.connection_params)
+            channel = connection.channel()
+            
+            exchange_name = "Contracts.Events:InterviewPrepCompletedEvent"
+            channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable=True)
+            
+            # Since we enabled RawJsonDeserializer in .NET, we send a flat object
+            message = {
+                "uploadId": upload_id,
+                "userId": userId,
+                "interviewPrepJson": json.dumps(prep_json),
+                "status": "FullyCompleted"
+            }
+            
+            channel.basic_publish(
+                exchange=exchange_name,
+                routing_key='',
+                body=json.dumps(message),
+                properties=pika.BasicProperties(content_type='application/json')
+            )
+            logger.info(f"Published Interview Prep event for {upload_id}")
+            connection.close()
+        except Exception as e:
+            logger.error(f"Failed to publish interview prep event: {e}")
 
     def start_consuming(self):
         while True:
@@ -87,8 +113,17 @@ class EventBus:
                                 industry = pipeline_result.get("role_context", {}).get("primaryIndustry", "Unknown")
                                 name = pipeline_result.get("structured_data", {}).get("personalInfo", {}).get("name", "Unknown")
                                 
-                                # Publish the lightweight event
+                                # 1. Publish the lightweight event (Stages 1-7)
                                 self.publish_completion(upload_id, userId, score, industry, name)
+
+                                # 2. Start Stage 8 (Interview Prep) in a background thread
+                                # This allows the callback to return and ACK the message immediately
+                                import threading
+                                bg_thread = threading.Thread(
+                                    target=self.run_stage8_background_sync, 
+                                    args=(pipeline_result, upload_id, userId)
+                                )
+                                bg_thread.start()
                             else:
                                 logger.error(f"Pipeline failed for {upload_id}: {pipeline_result['error']}")
                         
@@ -104,5 +139,23 @@ class EventBus:
                 logger.error(f"RabbitMQ Connection failed: {e}. Retrying in 5s...")
                 import time
                 time.sleep(5)
+
+    def run_stage8_background_sync(self, pipeline_result: dict, upload_id: str, user_id: str):
+        """Thread helper to run Stage 8 and publish result."""
+        try:
+            logger.info(f"Background thread starting Stage 8 for {upload_id}")
+            # Run the async generate_interview_prep in a new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            prep_result = loop.run_until_complete(ai_service.generate_interview_prep(pipeline_result, upload_id))
+            
+            if prep_result and "error" not in prep_result:
+                self.publish_interview_prep(upload_id, user_id, prep_result)
+            else:
+                logger.error(f"Background Stage 8 failed for {upload_id}: {prep_result.get('error')}")
+            
+            loop.close()
+        except Exception as e:
+            logger.error(f"Exception in background Stage 8 thread for {upload_id}: {e}")
 
 event_bus = EventBus()

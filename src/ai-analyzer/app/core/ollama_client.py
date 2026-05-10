@@ -9,7 +9,7 @@ class OllamaClient:
     """Low-level client for Ollama API communication."""
     
     @staticmethod
-    def call_sync(prompt: str, timeout: float = 180.0) -> str:
+    def call_sync(prompt: str, timeout: float = 180.0, num_predict: int = 4096) -> str:
         """Synchronous call to Ollama."""
         try:
             import httpx as sync_httpx
@@ -21,9 +21,9 @@ class OllamaClient:
                     "stream": False,
                     "format": "json",
                     "options": {
-                        "num_thread": 2,
-                        "num_ctx": 4096,      # Slightly more context
-                        "num_predict": 2048,  # Allow for longer recommendations
+                        "num_thread": settings.OLLAMA_NUM_THREAD,
+                        "num_ctx": settings.OLLAMA_NUM_CTX,
+                        "num_predict": num_predict,
                     }
                 },
                 timeout=timeout

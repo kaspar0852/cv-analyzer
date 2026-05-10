@@ -85,7 +85,8 @@ async def get_analysis(upload_id: str):
                 "stage4_recommendations": results.get("recommendations"),
                 "stage5_ats": results.get("ats_results"),
                 "stage6_cover_letter": results.get("cover_letter_guidance"),
-                "stage7_salary": results.get("salary_insights")
+                "stage7_salary": results.get("salary_insights"),
+                "interview_prep": results.get("interview_prep")
             },
             "metadata": {
                 "model": analysis.model_name,

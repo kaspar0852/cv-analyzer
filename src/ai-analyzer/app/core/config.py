@@ -10,6 +10,8 @@ class Config:
     
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e4b")
+    OLLAMA_NUM_THREAD = int(os.getenv("OLLAMA_NUM_THREAD", "8"))
+    OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "16384"))
     
     # Event Names
     RAW_TEXT_EVENT = "Contracts.Events:RawTextExtractedEvent"

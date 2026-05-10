@@ -39,21 +39,26 @@ builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<CVAnalysisCompletedConsumer>();
     x.AddConsumer<FileUploadedEventConsumer>();
+    x.AddConsumer<InterviewPrepCompletedEventConsumer>();
 
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        x.UsingRabbitMq((context, cfg) =>
         {
-            h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
-            h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
-        });
+            cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+            {
+                h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+                h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+            });
 
-        cfg.ReceiveEndpoint("results-service-queue", e =>
-        {
-            e.ConfigureConsumer<CVAnalysisCompletedConsumer>(context);
-            e.ConfigureConsumer<FileUploadedEventConsumer>(context);
+            // Crucial: Allow Raw JSON from non-MassTransit sources (Python)
+            cfg.UseRawJsonDeserializer();
+
+            cfg.ReceiveEndpoint("results-service-queue", e =>
+            {
+                e.ConfigureConsumer<CVAnalysisCompletedConsumer>(context);
+                e.ConfigureConsumer<FileUploadedEventConsumer>(context);
+                e.ConfigureConsumer<InterviewPrepCompletedEventConsumer>(context);
+            });
         });
-    });
 });
 
 builder.Services.AddControllers();

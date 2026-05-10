@@ -11,6 +11,42 @@ class BaseStage(ABC):
     
     def __init__(self, name: str):
         self.name = name
+        self.timeout = 180.0 # Default timeout for stages
+        self.num_predict = 4096
+
+    def _extract_json(self, response_text: str) -> str:
+        """Extract the first complete JSON object from a model response."""
+        text = response_text.strip()
+        start = text.find('{')
+        if start == -1:
+            return text
+
+        depth = 0
+        in_string = False
+        escaped = False
+
+        for index in range(start, len(text)):
+            char = text[index]
+
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == '\\':
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+
+            if char == '"':
+                in_string = True
+            elif char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[start:index + 1]
+
+        return text[start:]
 
     async def run(self, **kwargs) -> dict:
         """Executes the stage with timing and logging."""
@@ -19,13 +55,17 @@ class BaseStage(ABC):
         
         try:
             prompt = self.get_prompt(**kwargs)
-            response_text = ollama_client.call_sync(prompt)
+            response_text = ollama_client.call_sync(
+                prompt,
+                timeout=self.timeout,
+                num_predict=self.num_predict
+            )
             
             try:
-                result = json.loads(response_text)
+                result = json.loads(self._extract_json(response_text))
             except json.JSONDecodeError as je:
                 logger.warning(f"--- ATTEMPTING JSON REPAIR FOR {self.name} ---")
-                repaired_text = response_text.strip()
+                repaired_text = self._extract_json(response_text)
                 open_braces = repaired_text.count('{')
                 close_braces = repaired_text.count('}')
                 if open_braces > close_braces:

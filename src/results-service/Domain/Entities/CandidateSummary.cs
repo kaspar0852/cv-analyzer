@@ -16,6 +16,7 @@ namespace ResultsService.Domain.Entities
         public string? Specialization { get; set; }
         
         public string Status { get; set; } = "Completed";
+        public string? InterviewQuestionsJson { get; set; } // Phase 2: Async Prep Data
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }

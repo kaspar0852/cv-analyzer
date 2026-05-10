@@ -5,7 +5,7 @@ import { HeroSection } from './components/hero-section';
 import { UploadCard } from './components/upload-card';
 import { ScanningView } from '@/components/analyzer/ScanningView';
 import { ResultView } from '@/components/analyzer/ResultView';
-import { useCVAnalyzer } from '@/hooks/use-cv-analyzer';
+import { useCVAnalyzer, setupAnalysisSignalR } from '@/hooks/use-cv-analyzer';
 import { useAuth } from '@/hooks/use-auth';
 import { HistorySection } from './components/history-section';
 import { useEffect, Suspense } from 'react';
@@ -20,6 +20,7 @@ function AnalyzerContent() {
     const uploadId = searchParams.get('id');
     if (uploadId && !hasUploaded && !isLoading) {
       loadAnalysis(uploadId);
+      setupAnalysisSignalR(uploadId);
     }
   }, [searchParams, hasUploaded, isLoading, loadAnalysis]);
 
@@ -30,7 +31,7 @@ function AnalyzerContent() {
       <section className="py-12 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
-            
+
             {/* Phase 1: Upload Selection */}
             {!hasUploaded && !isLoading && (
               <motion.div
@@ -67,15 +68,15 @@ function AnalyzerContent() {
                 transition={{ duration: 0.6 }}
               >
                 <ResultView data={result} />
-                
+
                 {/* Reset Button */}
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 2 }}
                   className="mt-12 text-center"
                 >
-                  <button 
+                  <button
                     onClick={() => window.location.reload()}
                     className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors underline decoration-dotted underline-offset-4"
                   >

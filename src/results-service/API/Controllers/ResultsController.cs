@@ -6,6 +6,8 @@ using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ResultsService.API.Controllers
 {
@@ -25,16 +27,22 @@ namespace ResultsService.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetResults([FromQuery] string? industry)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                         ?? User.FindFirst("nameid")?.Value 
+                         ?? User.FindFirst("sub")?.Value;
             
-            // If guest, they don't have a history list
-            if (string.IsNullOrEmpty(userId))
+            var query = _dbContext.CandidateSummaries.AsQueryable();
+
+            if (!string.IsNullOrEmpty(userId))
             {
-                return Ok(new List<object>());
+                // Show user's own results + any anonymous ones (for transition/demo)
+                query = query.Where(c => c.UserId == userId || string.IsNullOrEmpty(c.UserId));
             }
-            
-            var query = _dbContext.CandidateSummaries
-                .Where(c => c.UserId == userId); // Filter by the current user
+            else 
+            {
+                // For guests, only show anonymous results
+                query = query.Where(c => string.IsNullOrEmpty(c.UserId));
+            }
             
             if (!string.IsNullOrEmpty(industry))
             {
@@ -48,7 +56,9 @@ namespace ResultsService.API.Controllers
         [HttpGet("{uploadId}")]
         public async Task<IActionResult> GetResult(Guid uploadId)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                         ?? User.FindFirst("nameid")?.Value 
+                         ?? User.FindFirst("sub")?.Value;
             
             var summary = await _dbContext.CandidateSummaries
                 .FirstOrDefaultAsync(c => c.UploadId == uploadId);
@@ -67,7 +77,9 @@ namespace ResultsService.API.Controllers
         [HttpGet("{uploadId}/full-report")]
         public async Task<IActionResult> GetFullReport(Guid uploadId)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                         ?? User.FindFirst("nameid")?.Value 
+                         ?? User.FindFirst("sub")?.Value;
             
             var summary = await _dbContext.CandidateSummaries
                 .FirstOrDefaultAsync(c => c.UploadId == uploadId);
@@ -93,7 +105,30 @@ namespace ResultsService.API.Controllers
                 }
 
                 var fullReport = await response.Content.ReadAsStringAsync();
-                return Content(fullReport, "application/json");
+
+                if (string.IsNullOrWhiteSpace(summary.InterviewQuestionsJson))
+                {
+                    return Content(fullReport, "application/json");
+                }
+
+                var reportNode = JsonNode.Parse(fullReport)?.AsObject();
+                if (reportNode == null)
+                {
+                    return Content(fullReport, "application/json");
+                }
+
+                if (reportNode["results"] is not JsonObject resultsNode)
+                {
+                    resultsNode = new JsonObject();
+                    reportNode["results"] = resultsNode;
+                }
+
+                if (resultsNode["interview_prep"] == null)
+                {
+                    resultsNode["interview_prep"] = JsonNode.Parse(summary.InterviewQuestionsJson);
+                }
+
+                return Content(reportNode.ToJsonString(), "application/json");
             }
             catch (Exception ex)
             {

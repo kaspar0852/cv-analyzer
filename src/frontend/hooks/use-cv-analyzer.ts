@@ -18,7 +18,10 @@ interface CVAnalyzerStore {
   uploadFile: (file: File) => Promise<void>;
   loadAnalysis: (uploadId: string) => Promise<void>;
   resetState: () => void;
+  updateInterviewPrep: (prepJson: string) => void;
 }
+
+let connection: signalR.HubConnection | null = null;
 
 export const useCVAnalyzer = create<CVAnalyzerStore>((set) => ({
   file: null,
@@ -37,6 +40,7 @@ export const useCVAnalyzer = create<CVAnalyzerStore>((set) => ({
     try {
       // 1. Upload
       const uploadId = await cvApiClient.uploadCV(file);
+      setupAnalysisSignalR(uploadId);
       set({ progress: 30, statusText: 'File received. Starting AI extraction...' });
 
       // 2. Poll for results (Long Polling with 15-minute timeout)
@@ -48,7 +52,7 @@ export const useCVAnalyzer = create<CVAnalyzerStore>((set) => ({
         attempts++;
         const summary = await cvApiClient.checkStatus(uploadId);
         
-        if (summary.status === 'Completed') {
+        if (summary.status === 'Completed' || summary.status === 'FullyCompleted') {
           isDone = true;
           set({ progress: 80, statusText: 'Analysis complete! Fetching deep insights...' });
         } else if (summary.status === 'Failed') {
@@ -107,13 +111,72 @@ export const useCVAnalyzer = create<CVAnalyzerStore>((set) => ({
     }
   },
 
-  resetState: () => set({
-    file: null,
-    isLoading: false,
-    statusText: '',
-    progress: 0,
-    error: null,
-    result: null,
-    hasUploaded: false,
-  }),
+  resetState: () => {
+    if (connection) {
+      connection.stop();
+      connection = null;
+    }
+    
+    set({
+      file: null,
+      isLoading: false,
+      statusText: '',
+      progress: 0,
+      error: null,
+      result: null,
+      hasUploaded: false,
+    });
+  },
+
+  updateInterviewPrep: (prepJson: string) => {
+    set((state) => {
+      if (!state.result) return state;
+
+      // Parse the JSON (AI might have sent it as a string)
+      let parsedData = prepJson;
+      try {
+        if (typeof prepJson === 'string') {
+          parsedData = JSON.parse(prepJson);
+        }
+      } catch (e) {
+        console.error("Failed to parse Interview Prep JSON:", e);
+      }
+
+      // Merge into the results object
+      return {
+        result: {
+          ...state.result,
+          results: {
+            ...state.result.results,
+            interview_prep: parsedData
+          }
+        }
+      };
+    });
+  },
 }));
+
+// Helper to setup SignalR for real-time background updates (Phase 2)
+export const setupAnalysisSignalR = (uploadId: string) => {
+  const { updateInterviewPrep } = useCVAnalyzer.getState();
+  
+  if (connection) connection.stop();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+  connection = new signalR.HubConnectionBuilder()
+    .withUrl(`${apiUrl}/api/results/hub`)
+    .withAutomaticReconnect()
+    .build();
+
+  connection.on("InterviewPrepReady", (prepJson: string) => {
+    console.log("🚀 Real-time Update: Interview Prep is Ready!");
+    updateInterviewPrep(prepJson);
+  });
+
+  connection.start()
+    .then(() => {
+      connection?.invoke("SubscribeToAnalysis", uploadId);
+    })
+    .catch(err => console.error("SignalR Connection Error: ", err));
+};

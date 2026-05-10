@@ -84,7 +84,26 @@ class SalaryStage(BaseStage):
     def __init__(self):
         super().__init__("Stage 7: Salary Insights")
 
-    def get_prompt(self, role_context: dict) -> str:
+    def get_prompt(self, structured_data: dict, role_context: dict) -> str:
         role = role_context.get("roleSpecialization", "Software Engineer")
         years = role_context.get("yearsOfExperience", 0)
-        return SALARY_PROMPT.format(role=role, years=years)
+        industry = role_context.get("primaryIndustry", "Software Development")
+        skills = structured_data.get("skills", [])
+        education = structured_data.get("education", [])
+        experience = structured_data.get("experience", [])
+
+        return SALARY_PROMPT.format(
+            role_specialization=role,
+            years_of_experience=years,
+            technical_skills=json.dumps(skills),
+            industry=industry,
+            education=json.dumps(education),
+            recent_companies=json.dumps(experience[:3]),
+            has_international_experience="Unknown",
+            key_technical_skills=json.dumps(skills),
+            detected_industry=industry,
+            education_level=json.dumps(education),
+            latest_companies=json.dumps(experience[:3]),
+            structured_cv_data=json.dumps(structured_data),
+            role_context=json.dumps(role_context)
+        )

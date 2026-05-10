@@ -9,6 +9,7 @@ from app.services.pipeline.stages import (
     ExtractionStage, ContextStage, ScoringStage, 
     RecommendationStage, ATSStage, CoverLetterStage, SalaryStage
 )
+from app.services.pipeline.interview_prep import InterviewPrepStage
 
 logger = logging.getLogger("AIAnalyzer")
 
@@ -24,6 +25,7 @@ class AIService:
         self.s5 = ATSStage()
         self.s6 = CoverLetterStage()
         self.s7 = SalaryStage()
+        self.s8 = InterviewPrepStage()
 
     async def analyze_cv_pipeline(self, raw_text: str, upload_id: str) -> str:
         pipeline_start_time = time.time()
@@ -61,7 +63,7 @@ class AIService:
             cover_letter = await self.s6.run(role_context=role_context, scoring_results=scoring_results, recommendations=recommendations)
             
             # Stage 7: Salary
-            salary = await self.s7.run(role_context=role_context)
+            salary = await self.s7.run(structured_data=structured_data, role_context=role_context)
 
             # Prepare results
             final_result_dict = {
@@ -108,6 +110,39 @@ class AIService:
                 db_record = res.scalar_one()
                 db_record.status = "Failed"
                 await session.commit()
+            return {"error": str(e)}
+
+    async def generate_interview_prep(self, analysis_result: dict, upload_id: str) -> dict:
+        """Runs the background Stage 8 for Interview Preparation."""
+        logger.info(f"== Starting Stage 8 (Interview Prep) for UploadId: {upload_id} ==")
+        
+        try:
+            prep_package = await self.s8.run(
+                structured_data=analysis_result.get("structured_data", {}),
+                cv_analysis=analysis_result.get("scoring_results", {}),
+                role_context=analysis_result.get("role_context", {}),
+                recommendations=analysis_result.get("recommendations", {})
+            )
+
+            # Update DB Record with the new data
+            async with get_sessionmaker()() as session:
+                from sqlalchemy import select
+                stmt = select(Analysis).where(Analysis.upload_id == uuid.UUID(upload_id))
+                res = await session.execute(stmt)
+                db_record = res.scalar_one()
+
+                # Merge with existing JSON or store separately
+                # Reassign a fresh dict so the JSON column is marked dirty reliably.
+                current_json = dict(db_record.full_result_json or {})
+                current_json["interview_prep"] = prep_package
+                db_record.full_result_json = current_json
+                
+                await session.commit()
+
+            logger.info(f"== Stage 8 Completed and Saved to DB for {upload_id} ==")
+            return prep_package
+        except Exception as e:
+            logger.error(f"Stage 8 failed for {upload_id}: {e}")
             return {"error": str(e)}
 
 ai_service = AIService()

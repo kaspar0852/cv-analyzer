@@ -40,6 +40,9 @@ namespace ResultsService.Infrastructure.Data.Migrations
                     b.Property<string>("Industry")
                         .HasColumnType("text");
 
+                    b.Property<string>("InterviewQuestionsJson")
+                        .HasColumnType("text");
+
                     b.Property<int>("OverallScore")
                         .HasColumnType("integer");
 
