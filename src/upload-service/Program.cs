@@ -89,4 +89,5 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.Logger.LogInformation("🚀 Upload Service is starting and ready for CVs!");
 app.Run();
